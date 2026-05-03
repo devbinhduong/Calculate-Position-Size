@@ -79,12 +79,10 @@
             margin-top: 10px;
             transition: opacity 0.2s;
         }
-        button#calcBtn:active { opacity: 0.8; }
 
         .btn-long { background-color: var(--primary-green); }
         .btn-short { background-color: var(--primary-red); }
 
-        /* Phần kết quả mới */
         #result {
             margin-top: 20px;
             padding: 15px;
@@ -120,8 +118,6 @@
             font-size: 0.7rem;
             text-transform: uppercase;
         }
-        .copy-btn:hover { background: #555; }
-        .copy-btn:active { background: var(--accent); color: #000; }
 
         #toast {
             visibility: hidden;
@@ -144,7 +140,7 @@
 <body>
 
 <div class="container">
-    <h2 style="text-align: center; margin-bottom: 20px; font-size: 1.2rem;">CALC POSITION SIZE</h2>
+    <h2 style="text-align: center; margin-bottom: 20px; font-size: 1.2rem;">PRO CALC 1R</h2>
     
     <div class="tabs">
         <div class="tab active" data-type="long" onclick="setMode('long')">LONG</div>
@@ -153,25 +149,25 @@
 
     <div class="input-group">
         <label>Vốn (USDT)</label>
-        <input type="number" id="capital" placeholder="Ví dụ: 1000">
+        <input type="number" id="capital" value="100">
     </div>
     <div class="input-group">
         <label>Risk (%)</label>
-        <input type="number" id="risk" placeholder="Ví dụ: 1">
+        <input type="number" id="risk" value="2">
     </div>
     <div class="input-group">
         <label>Entry Price</label>
-        <input type="number" id="entry" step="any" placeholder="0.00">
+        <input type="number" id="entry" step="any" placeholder="Nhập giá vào..." autofocus>
     </div>
     <div class="input-group">
         <label>Stop Loss</label>
-        <input type="number" id="sl" step="any" placeholder="0.00">
+        <input type="number" id="sl" step="any" placeholder="Nhập giá dừng lỗ...">
     </div>
 
     <button id="calcBtn" class="btn-long" onclick="calculate()">TÍNH TOÁN LONG</button>
 
     <div id="result">
-        <div style="font-size: 0.8rem; color: #888;">Cần nhập (Size USDT):</div>
+        <div style="font-size: 0.8rem; color: #888;">Size lệnh (USDT):</div>
         <div class="result-row">
             <span id="posSize" class="result-value">0</span>
             <button class="copy-btn" onclick="copyToClipboard()">Copy</button>
@@ -203,27 +199,25 @@
         const sl = parseFloat(document.getElementById('sl').value);
 
         if (!capital || !riskPercent || !entry || !sl) {
-            alert("Vui lòng điền đủ các ô!");
+            alert("Vui lòng điền giá Entry và SL!");
             return;
         }
 
-        if (mode === 'long' && sl >= entry) { alert("LONG thì SL phải < Entry!"); return; }
-        if (mode === 'short' && sl <= entry) { alert("SHORT thì SL phải > Entry!"); return; }
+        if (mode === 'long' && sl >= entry) { alert("LONG: SL phải < Entry!"); return; }
+        if (mode === 'short' && sl <= entry) { alert("SHORT: SL phải > Entry!"); return; }
 
         const riskAmount = capital * (riskPercent / 100);
         const priceDiff = Math.abs(entry - sl);
         
-        // Công thức tính tổng Volume (Size) bằng USDT
         rawValue = (riskAmount / priceDiff) * entry;
         const leverage = rawValue / capital;
 
         document.getElementById('result').style.display = 'block';
         document.getElementById('posSize').innerText = rawValue.toLocaleString(undefined, {maximumFractionDigits: 2});
-        document.getElementById('leverageInfo').innerText = `Đòn bẩy thực tế: x${leverage.toFixed(2)}`;
+        document.getElementById('leverageInfo').innerText = `Đòn bẩy yêu cầu: x${leverage.toFixed(2)}`;
     }
 
     function copyToClipboard() {
-        // Sao chép giá trị số không có dấu phẩy để dán vào sàn dễ hơn
         const textToCopy = rawValue.toFixed(2);
         navigator.clipboard.writeText(textToCopy).then(() => {
             const toast = document.getElementById('toast');
