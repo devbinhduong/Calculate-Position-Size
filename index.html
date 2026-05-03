@@ -11,10 +11,11 @@
             --dark-bg: #1a1a1a;
             --card-bg: #2d2d2d;
             --text-color: #ffffff;
+            --accent: #f1c40f;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             background-color: var(--dark-bg);
             color: var(--text-color);
             display: flex;
@@ -41,7 +42,7 @@
 
         .tab {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             text-align: center;
             cursor: pointer;
             background: #444;
@@ -53,7 +54,7 @@
         .tab.active[data-type="short"] { background-color: var(--primary-red); }
 
         .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #bbb; }
+        label { display: block; margin-bottom: 5px; font-size: 0.85rem; color: #bbb; }
         input {
             width: 100%;
             padding: 10px;
@@ -62,9 +63,11 @@
             background: #1a1a1a;
             color: white;
             box-sizing: border-box;
+            outline: none;
         }
+        input:focus { border-color: var(--accent); }
 
-        button {
+        button#calcBtn {
             width: 100%;
             padding: 12px;
             border: none;
@@ -74,32 +77,74 @@
             cursor: pointer;
             font-size: 1rem;
             margin-top: 10px;
+            transition: opacity 0.2s;
         }
+        button#calcBtn:active { opacity: 0.8; }
 
         .btn-long { background-color: var(--primary-green); }
         .btn-short { background-color: var(--primary-red); }
 
+        /* Phần kết quả mới */
         #result {
             margin-top: 20px;
             padding: 15px;
             border-radius: 8px;
-            background: #1a1a1a;
+            background: #111;
             text-align: center;
             display: none;
+            border: 1px dashed #444;
+            position: relative;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
         }
 
         .result-value {
-            display: block;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             font-weight: bold;
-            color: #f1c40f;
+            color: var(--accent);
         }
+
+        .copy-btn {
+            background: #444;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        .copy-btn:hover { background: #555; }
+        .copy-btn:active { background: var(--accent); color: #000; }
+
+        #toast {
+            visibility: hidden;
+            background-color: var(--accent);
+            color: #000;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            font-weight: bold;
+            width: 100px;
+        }
+        #toast.show { visibility: visible; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="text-align: center; margin-top: 0;">Position Size</h2>
+    <h2 style="text-align: center; margin-bottom: 20px; font-size: 1.2rem;">CALC POSITION SIZE</h2>
     
     <div class="tabs">
         <div class="tab active" data-type="long" onclick="setMode('long')">LONG</div>
@@ -107,33 +152,38 @@
     </div>
 
     <div class="input-group">
-        <label>Tổng vốn (USDT)</label>
+        <label>Vốn (USDT)</label>
         <input type="number" id="capital" placeholder="Ví dụ: 1000">
     </div>
     <div class="input-group">
-        <label>Rủi ro mỗi lệnh (%)</label>
-        <input type="number" id="risk" placeholder="Ví dụ: 1 (mất 1% vốn)">
+        <label>Risk (%)</label>
+        <input type="number" id="risk" placeholder="Ví dụ: 1">
     </div>
     <div class="input-group">
-        <label>Điểm vào (Entry)</label>
-        <input type="number" id="entry" placeholder="0.00">
+        <label>Entry Price</label>
+        <input type="number" id="entry" step="any" placeholder="0.00">
     </div>
     <div class="input-group">
-        <label>Dừng lỗ (Stop Loss)</label>
-        <input type="number" id="sl" placeholder="0.00">
+        <label>Stop Loss</label>
+        <input type="number" id="sl" step="any" placeholder="0.00">
     </div>
 
-    <button id="calcBtn" class="btn-long" onclick="calculate()">Tính toán Long</button>
+    <button id="calcBtn" class="btn-long" onclick="calculate()">TÍNH TOÁN LONG</button>
 
     <div id="result">
-        <span style="font-size: 0.9rem;">Khối lượng vào lệnh:</span>
-        <span id="posSize" class="result-value">0</span>
-        <span id="leverageInfo" style="font-size: 0.8rem; color: #888;"></span>
+        <div style="font-size: 0.8rem; color: #888;">Cần nhập (Size USDT):</div>
+        <div class="result-row">
+            <span id="posSize" class="result-value">0</span>
+            <button class="copy-btn" onclick="copyToClipboard()">Copy</button>
+        </div>
+        <div id="leverageInfo" style="font-size: 0.75rem; color: #666; margin-top: 5px;"></div>
+        <div id="toast">Đã copy!</div>
     </div>
 </div>
 
 <script>
     let mode = 'long';
+    let rawValue = 0;
 
     function setMode(type) {
         mode = type;
@@ -142,7 +192,7 @@
         
         const btn = document.getElementById('calcBtn');
         btn.className = type === 'long' ? 'btn-long' : 'btn-short';
-        btn.innerText = `Tính toán ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        btn.innerText = `TÍNH TOÁN ${type.toUpperCase()}`;
         document.getElementById('result').style.display = 'none';
     }
 
@@ -153,33 +203,33 @@
         const sl = parseFloat(document.getElementById('sl').value);
 
         if (!capital || !riskPercent || !entry || !sl) {
-            alert("Vui lòng nhập đầy đủ thông tin!");
+            alert("Vui lòng điền đủ các ô!");
             return;
         }
 
-        // Kiểm tra tính hợp lệ của SL
-        if (mode === 'long' && sl >= entry) {
-            alert("Lệnh Long: Stop Loss phải thấp hơn Entry!"); return;
-        }
-        if (mode === 'short' && sl <= entry) {
-            alert("Lệnh Short: Stop Loss phải cao hơn Entry!"); return;
-        }
+        if (mode === 'long' && sl >= entry) { alert("LONG thì SL phải < Entry!"); return; }
+        if (mode === 'short' && sl <= entry) { alert("SHORT thì SL phải > Entry!"); return; }
 
         const riskAmount = capital * (riskPercent / 100);
         const priceDiff = Math.abs(entry - sl);
         
-        // Tính Position Size (Tổng giá trị USDT của lệnh)
-        const positionSize = (riskAmount / priceDiff) * entry;
-        const leverage = positionSize / capital;
+        // Công thức tính tổng Volume (Size) bằng USDT
+        rawValue = (riskAmount / priceDiff) * entry;
+        const leverage = rawValue / capital;
 
-        // Hiển thị kết quả
-        const resultDiv = document.getElementById('result');
-        const posSizeSpan = document.getElementById('posSize');
-        const leverageInfo = document.getElementById('leverageInfo');
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('posSize').innerText = rawValue.toLocaleString(undefined, {maximumFractionDigits: 2});
+        document.getElementById('leverageInfo').innerText = `Đòn bẩy thực tế: x${leverage.toFixed(2)}`;
+    }
 
-        resultDiv.style.display = 'block';
-        posSizeSpan.innerText = positionSize.toLocaleString(undefined, {maximumFractionDigits: 2}) + " USDT";
-        leverageInfo.innerText = `Tương đương đòn bẩy x${leverage.toFixed(2)}`;
+    function copyToClipboard() {
+        // Sao chép giá trị số không có dấu phẩy để dán vào sàn dễ hơn
+        const textToCopy = rawValue.toFixed(2);
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const toast = document.getElementById('toast');
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 1500);
+        });
     }
 </script>
 
