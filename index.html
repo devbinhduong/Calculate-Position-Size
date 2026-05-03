@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Position Size Calculator</title>
+    <style>
+        :root {
+            --primary-green: #27ae60;
+            --primary-red: #e74c3c;
+            --dark-bg: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 350px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            background: #444;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .tab.active[data-type="long"] { background-color: var(--primary-green); }
+        .tab.active[data-type="short"] { background-color: var(--primary-red); }
+
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #bbb; }
+        input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #1a1a1a;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .btn-long { background-color: var(--primary-green); }
+        .btn-short { background-color: var(--primary-red); }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #1a1a1a;
+            text-align: center;
+            display: none;
+        }
+
+        .result-value {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #f1c40f;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align: center; margin-top: 0;">Position Size</h2>
+    
+    <div class="tabs">
+        <div class="tab active" data-type="long" onclick="setMode('long')">LONG</div>
+        <div class="tab" data-type="short" onclick="setMode('short')">SHORT</div>
+    </div>
+
+    <div class="input-group">
+        <label>Tổng vốn (USDT)</label>
+        <input type="number" id="capital" placeholder="Ví dụ: 1000">
+    </div>
+    <div class="input-group">
+        <label>Rủi ro mỗi lệnh (%)</label>
+        <input type="number" id="risk" placeholder="Ví dụ: 1 (mất 1% vốn)">
+    </div>
+    <div class="input-group">
+        <label>Điểm vào (Entry)</label>
+        <input type="number" id="entry" placeholder="0.00">
+    </div>
+    <div class="input-group">
+        <label>Dừng lỗ (Stop Loss)</label>
+        <input type="number" id="sl" placeholder="0.00">
+    </div>
+
+    <button id="calcBtn" class="btn-long" onclick="calculate()">Tính toán Long</button>
+
+    <div id="result">
+        <span style="font-size: 0.9rem;">Khối lượng vào lệnh:</span>
+        <span id="posSize" class="result-value">0</span>
+        <span id="leverageInfo" style="font-size: 0.8rem; color: #888;"></span>
+    </div>
+</div>
+
+<script>
+    let mode = 'long';
+
+    function setMode(type) {
+        mode = type;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.tab[data-type="${type}"]`).classList.add('active');
+        
+        const btn = document.getElementById('calcBtn');
+        btn.className = type === 'long' ? 'btn-long' : 'btn-short';
+        btn.innerText = `Tính toán ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        document.getElementById('result').style.display = 'none';
+    }
+
+    function calculate() {
+        const capital = parseFloat(document.getElementById('capital').value);
+        const riskPercent = parseFloat(document.getElementById('risk').value);
+        const entry = parseFloat(document.getElementById('entry').value);
+        const sl = parseFloat(document.getElementById('sl').value);
+
+        if (!capital || !riskPercent || !entry || !sl) {
+            alert("Vui lòng nhập đầy đủ thông tin!");
+            return;
+        }
+
+        // Kiểm tra tính hợp lệ của SL
+        if (mode === 'long' && sl >= entry) {
+            alert("Lệnh Long: Stop Loss phải thấp hơn Entry!"); return;
+        }
+        if (mode === 'short' && sl <= entry) {
+            alert("Lệnh Short: Stop Loss phải cao hơn Entry!"); return;
+        }
+
+        const riskAmount = capital * (riskPercent / 100);
+        const priceDiff = Math.abs(entry - sl);
+        
+        // Tính Position Size (Tổng giá trị USDT của lệnh)
+        const positionSize = (riskAmount / priceDiff) * entry;
+        const leverage = positionSize / capital;
+
+        // Hiển thị kết quả
+        const resultDiv = document.getElementById('result');
+        const posSizeSpan = document.getElementById('posSize');
+        const leverageInfo = document.getElementById('leverageInfo');
+
+        resultDiv.style.display = 'block';
+        posSizeSpan.innerText = positionSize.toLocaleString(undefined, {maximumFractionDigits: 2}) + " USDT";
+        leverageInfo.innerText = `Tương đương đòn bẩy x${leverage.toFixed(2)}`;
+    }
+</script>
+
+</body>
+</html>
